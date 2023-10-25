@@ -618,7 +618,7 @@ SUBROUTINE AD_InputSolve_NoIfW( p_FAST, u_AD, y_SrvD, y_ED, BD, MeshMapData, Err
       
 !      CALL Transfer_Line2_to_Line2( y_ED%TowerLn2Mesh, u_AD%rotors(1)%TowerMotion, MeshMapData%ED_L_2_AD_L_T, ErrStat2, ErrMsg2 )
 !         CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName//':u_AD%TowerMotion' )      
-      CALL Transfer_Point_to_Line2( y_ED%PlatformPtMesh, u_AD%rotors(1)%TowerMotion, MeshMapData%ED_P_2_AD_L_T, ErrStat2, ErrMsg2 )
+      CALL Transfer_Point_to_Line2( y_ED%NacelleMotion, u_AD%rotors(1)%TowerMotion, MeshMapData%ED_P_2_AD_L_T, ErrStat2, ErrMsg2 )
          CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName//':u_AD%TowerMotion' )      
             
    END IF
@@ -4568,7 +4568,7 @@ SUBROUTINE InitModuleMappings(p_FAST, ED, BD, AD14, AD, HD, SD, ExtPtfm, SrvD, M
       IF ( AD%Input(1)%rotors(1)%TowerMotion%Committed ) THEN
 !         CALL MeshMapCreate( ED%y%TowerLn2Mesh, AD%Input(1)%rotors(1)%TowerMotion, MeshMapData%ED_L_2_AD_L_T, ErrStat2, ErrMsg2 )
 !            CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName//':ED_2_AD_TowerMotion' )
-         CALL MeshMapCreate( ED%y%PlatformPtMesh, AD%Input(1)%rotors(1)%TowerMotion, MeshMapData%ED_P_2_AD_L_T, ErrStat2, ErrMsg2 )
+         CALL MeshMapCreate( ED%y%NacelleMotion, AD%Input(1)%rotors(1)%TowerMotion, MeshMapData%ED_P_2_AD_L_T, ErrStat2, ErrMsg2 )
             CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName//':ED_2_AD_TowerMotion' )
             
 !         IF ( AD%y%rotors(1)%TowerLoad%Committed ) THEN            
