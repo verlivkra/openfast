@@ -1111,6 +1111,56 @@ SUBROUTINE ElemK_Beam(A, L, Ixx, Iyy, Jzz, Shear, kappa_x, kappa_y, E, G, DirCos
    K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
    
 END SUBROUTINE ElemK_Beam
+
+!> VLK: Element stiffness matrix for beam elements with only diagonal terms
+!! shear is true  -- non-tapered Timoshenko beam 
+!! shear is false -- non-tapered Euler-Bernoulli beam 
+SUBROUTINE ElemK_BeamDiag(A, L, Ixx, Iyy, Jzz, Shear, kappa_x, kappa_y, E, G, DirCos, K)
+   REAL(ReKi), INTENT( IN) :: A, L, Ixx, Iyy, Jzz, E, G, kappa_x, kappa_y
+   REAL(FEKi), INTENT( IN) :: DirCos(3,3) !< From element to global: xg = DC.xe,  Kg = DC.Ke.DC^t
+   LOGICAL   , INTENT( IN) :: Shear
+   REAL(FEKi), INTENT(OUT) :: K(12, 12) 
+   ! Local variables
+   REAL(FEKi)                            :: Ax, Ay, Kx, Ky
+   REAL(FEKi)                            :: DC(12, 12)
+   
+   Ax = kappa_x*A
+   Ay = kappa_y*A
+   
+   K(1:12,1:12) = 0.0_FEKi
+   
+   IF (Shear) THEN
+      Kx = 12.0_FEKi*E*Iyy / (G*Ax*L*L)
+      Ky = 12.0_FEKi*E*Ixx / (G*Ay*L*L)
+   ELSE
+      Kx = 0.0_FEKi
+      Ky = 0.0_FEKi
+   ENDIF
+      
+   K( 9,  9) = E*A/L
+   K( 7,  7) = 12.0_FEKi*E*Iyy/( L*L*L*(1.0_FEKi + Kx) )
+   K( 8,  8) = 12.0_FEKi*E*Ixx/( L*L*L*(1.0_FEKi + Ky) )
+   K(12, 12) = G*Jzz/L
+   K(10, 10) = (4.0_FEKi + Ky)*E*Ixx / ( L*(1.0_FEKi+Ky) )  
+   K(11, 11) = (4.0_FEKi + Kx)*E*Iyy / ( L*(1.0_FEKi+Kx) )
+   
+   K( 3,  3)  = K(9,9)
+   K( 1,  1)  = K(7,7)
+   K( 2,  2)  = K(8,8)
+   K( 6,  6)  = K(12,12)
+   K( 4,  4)  = K(10,10)
+   K(5,5)  = K(11,11)
+   
+   
+   DC = 0.0_FEKi
+   DC( 1: 3,  1: 3) = DirCos
+   DC( 4: 6,  4: 6) = DirCos
+   DC( 7: 9,  7: 9) = DirCos
+   DC(10:12, 10:12) = DirCos
+   
+   K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
+   
+END SUBROUTINE ElemK_BeamDiag
 !------------------------------------------------------------------------------------------------------
 !> Element stiffness matrix for pretension cable
 !! Element coordinate system:  z along the cable!

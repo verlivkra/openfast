@@ -3779,6 +3779,16 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
 
            WRITE(UnSum, '("#",I9,I10,I10,I10,I10,ES15.6E2,ES15.6E2, A3,'//Num2LStr(Init%NDiv + 1 )//'(I6))') Init%Members(i,1:3),propIDs(1),propIDs(2),&
                  mMass,mLength,' ',(Init%MemberNodes(i, j), j = 1, Init%NDiv+1)
+        
+        else if (mType==idMemberBeamCircDiag) then
+           iProp(1) = FINDLOCI(Init%PropSetsB(:,1), propIDs(1))
+           iProp(2) = FINDLOCI(Init%PropSetsB(:,1), propIDs(2))
+           mMass= BeamMass(Init%PropSetsB(iProp(1),4),Init%PropSetsB(iProp(1),5),Init%PropSetsB(iProp(1),6),   &
+                             Init%PropSetsB(iProp(2),4),Init%PropSetsB(iProp(2),5),Init%PropSetsB(iProp(2),6), mLength, method=-1)
+
+           WRITE(UnSum, '("#",I9,I10,I10,I10,I10,ES15.6E2,ES15.6E2, A3,'//Num2LStr(Init%NDiv + 1 )//'(I6))') Init%Members(i,1:3),propIDs(1),propIDs(2),&
+                 mMass,mLength,' ',(Init%MemberNodes(i, j), j = 1, Init%NDiv+1)  
+        
         else if (mType==idMemberCable) then
            iProp(1) = FINDLOCI(Init%PropSetsC(:,1), propIDs(1))
            mMass= Init%PropSetsC(iProp(1),3) * mLength ! rho [kg/m] * L

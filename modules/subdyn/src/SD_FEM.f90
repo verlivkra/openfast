@@ -60,6 +60,7 @@ MODULE SD_FEM
   INTEGER(IntKi),   PARAMETER  :: idMemberCable      = 2
   INTEGER(IntKi),   PARAMETER  :: idMemberRigid      = 3
   INTEGER(IntKi),   PARAMETER  :: idMemberBeamArb    = 4
+  INTEGER(IntKi),   PARAMETER  :: idMemberBeamCircDiag    = 5
 
   ! Types of Boundary Conditions
   INTEGER(IntKi),   PARAMETER  :: idBC_Fixed    = 11 ! Fixed BC
@@ -385,6 +386,9 @@ SUBROUTINE SD_ReIndex_CreateNodesAndElems(Init,p, ErrStat, ErrMsg)
          if (mType==idMemberBeamCirc) then
             sType='Member circular cross-section property'
             p%Elems(iMem,n) = FINDLOCI(Init%PropSetsB(:,1), Init%Members(iMem, n) ) 
+         else if (mType==idMemberBeamCircDiag) then
+            sType='Member circular cross-section property with no off-diagonal terms'
+            p%Elems(iMem,n) = FINDLOCI(Init%PropSetsB(:,1), Init%Members(iMem, n) ) 
          else if (mType==idMemberCable) then
             sType='Cable property'
             p%Elems(iMem,n) = FINDLOCI(Init%PropSetsC(:,1), Init%Members(iMem, n) ) 
@@ -401,6 +405,12 @@ SUBROUTINE SD_ReIndex_CreateNodesAndElems(Init,p, ErrStat, ErrMsg)
          end if
          ! Test that the two properties match for non-beam 
          if (mType/=idMemberBeamCirc) then
+             if (Init%Members(iMem, iMProp)/=Init%Members(iMem, iMProp+1)) then
+                ! NOTE: for non circular beams, we could just check that E, rho, G are the same for both properties
+                call Fatal('Property IDs should be the same at both joints for arbitrary beams, rigid links, and cables. Check member with ID: '//TRIM(Num2LStr(Init%Members(iMem,1))))
+                return
+             endif
+         elseif (mType/=idMemberBeamCircDiag) then
              if (Init%Members(iMem, iMProp)/=Init%Members(iMem, iMProp+1)) then
                 ! NOTE: for non circular beams, we could just check that E, rho, G are the same for both properties
                 call Fatal('Property IDs should be the same at both joints for arbitrary beams, rigid links, and cables. Check member with ID: '//TRIM(Num2LStr(Init%Members(iMem,1))))
@@ -454,7 +464,7 @@ SUBROUTINE SD_Discrt(Init,p, ErrStat, ErrMsg)
    INTEGER                       :: iDirCos
    REAL(ReKi)                    :: x1, y1, z1, x2, y2, z2, dx, dy, dz, dd, dt, d1, d2, t1, t2
    LOGICAL                       :: CreateNewProp
-   INTEGER(IntKi)                :: nMemberCable, nMemberRigid, nMemberBeamCirc, nMemberBeamArb !< Number of memebers per type
+   INTEGER(IntKi)                :: nMemberCable, nMemberRigid, nMemberBeamCirc, nMemberBeamCircDiag, nMemberBeamArb !< Number of memebers per type
    INTEGER(IntKi)                :: eType !< Element Type
    INTEGER(IntKi)                :: ErrStat2
    CHARACTER(ErrMsgLen)          :: ErrMsg2
@@ -470,16 +480,17 @@ SUBROUTINE SD_Discrt(Init,p, ErrStat, ErrMsg)
    
    ! --- Total number of element   
    nMemberBeamCirc = count(Init%Members(:,iMType) == idMemberBeamCirc)
+   nMemberBeamCircDiag = count(Init%Members(:,iMType) == idMemberBeamCircDiag)
    nMemberCable    = count(Init%Members(:,iMType) == idMemberCable)
    nMemberRigid    = count(Init%Members(:,iMType) == idMemberRigid)
    nMemberBeamArb  = count(Init%Members(:,iMType) == idMemberBeamArb)
-   Init%NElem = (nMemberBeamCirc + nMemberBeamArb)*Init%NDiv + nMemberCable + nMemberRigid  ! NOTE: only Beams are divided
-   IF ( (nMemberBeamCirc+nMemberRigid+nMemberCable+nMemberBeamArb) /= size(Init%Members,1)) then
+   Init%NElem = (nMemberBeamCirc + nMemberBeamCircDiag + nMemberBeamArb)*Init%NDiv + nMemberCable + nMemberRigid  ! NOTE: only Beams are divided
+   IF ( (nMemberBeamCirc+nMemberBeamCircDiag+nMemberRigid+nMemberCable+nMemberBeamArb) /= size(Init%Members,1)) then
       CALL Fatal(' Member list contains an element which is not a beam, a cable or a rigid link'); return
    ENDIF
 
    ! Total number of nodes - Depends on division and number of nodes per element
-   p%nNodes = Init%NJoints + ( Init%NDiv - 1 )*(nMemberBeamCirc) ! TODO add nMemberBeamArb when support for division provided
+   p%nNodes = Init%NJoints + ( Init%NDiv - 1 )*(nMemberBeamCirc+nMemberBeamCircDiag) ! TODO add nMemberBeamArb when support for division provided
    
    ! check the number of interior modes
    IF ( p%nDOFM > 6*(p%nNodes - p%nNodes_I - p%nNodes_C) ) THEN
@@ -508,6 +519,13 @@ SUBROUTINE SD_Discrt(Init,p, ErrStat, ErrMsg)
        endif
 
        if (eType==idMemberBeamCirc) then
+          if  ( ( .not. EqualRealNos(Init%PropSetsB(Prop1, 2),Init%PropSetsB(Prop2, 2) ) ) &
+           .or. ( .not. EqualRealNos(Init%PropSetsB(Prop1, 3),Init%PropSetsB(Prop2, 3) ) ) &
+           .or. ( .not. EqualRealNos(Init%PropSetsB(Prop1, 4),Init%PropSetsB(Prop2, 4) ) ) ) then
+             call Fatal(' Material E, G and rho in a member must be the same (See member at position '//trim(num2lstr(I))//' in member list)')
+             return
+           endif
+       else if (eType==idMemberBeamCircDiag) then
           if  ( ( .not. EqualRealNos(Init%PropSetsB(Prop1, 2),Init%PropSetsB(Prop2, 2) ) ) &
            .or. ( .not. EqualRealNos(Init%PropSetsB(Prop1, 3),Init%PropSetsB(Prop2, 3) ) ) &
            .or. ( .not. EqualRealNos(Init%PropSetsB(Prop1, 4),Init%PropSetsB(Prop2, 4) ) ) ) then
@@ -596,6 +614,20 @@ SUBROUTINE SD_Discrt(Init,p, ErrStat, ErrMsg)
           dz = ( z2 - z1 )/Init%NDiv
 
           if (eType == idMemberBeamCirc) then
+
+            d1 = TempProps(Prop1, 5)
+            t1 = TempProps(Prop1, 6)
+
+            d2 = TempProps(Prop2, 5)
+            t2 = TempProps(Prop2, 6)
+            
+            dd = ( d2 - d1 )/Init%NDiv
+            dt = ( t2 - t1 )/Init%NDiv
+
+             ! If both dd and dt are 0, no interpolation is needed, and we can use the same property set for new nodes/elements. otherwise we'll have to create new properties for each new node
+           
+            CreateNewProp = .NOT. ( EqualRealNos( dd , 0.0_ReKi ) .AND.  EqualRealNos( dt , 0.0_ReKi ) ) 
+          if (eType == idMemberBeamCircDiag) then
 
             d1 = TempProps(Prop1, 5)
             t1 = TempProps(Prop1, 6)
@@ -881,6 +913,53 @@ SUBROUTINE SetElementProperties(Init, p, ErrStat, ErrMsg)
 
       ! --- Properties that are specific to some elements
       if (eType==idMemberBeamCirc) then
+         E   = Init%PropsB(P1, 2) ! TODO E2 
+         G   = Init%PropsB(P1, 3) ! TODO G2
+         rho = Init%PropsB(P1, 4) ! TODO rho2
+         D1  = Init%PropsB(P1, 5)
+         t1  = Init%PropsB(P1, 6)
+         D2  = Init%PropsB(P2, 5)
+         t2  = Init%PropsB(P2, 6)
+         r1 = 0.25*(D1 + D2)
+         t  = 0.5*(t1+t2)
+         if ( EqualRealNos(t, 0.0_ReKi) ) then
+            r2 = 0
+         else
+            r2 = r1 - t
+         endif
+         A = Pi_D*(r1*r1-r2*r2)
+         Ixx = 0.25*Pi_D*(r1**4-r2**4)
+         Iyy = Ixx
+         Jzz = 2.0*Ixx
+         
+         if( Init%FEMMod == 1 ) then ! uniform Euler-Bernoulli
+            Shear = .false.
+            kappa = 0
+         elseif( Init%FEMMod == 3 ) then ! uniform Timoshenko
+            Shear = .true.
+          ! kappa = 0.53            
+            ! equation 13 (Steinboeck et al) in SubDyn Theory Manual 
+            nu = E / (2.0_ReKi*G) - 1.0_ReKi
+            D_outer = 2.0_ReKi * r1  ! average (outer) diameter
+            D_inner = D_outer - 2*t  ! remove 2x thickness to get inner diameter
+            ratioSq = ( D_inner / D_outer)**2
+            kappa =   ( 6.0 * (1.0 + nu) **2 * (1.0 + ratioSq)**2 ) &
+                    / ( ( 1.0 + ratioSq )**2 * ( 7.0 + 14.0*nu + 8.0*nu**2 ) + 4.0 * ratioSq * ( 5.0 + 10.0*nu + 4.0 *nu**2 ) )
+         endif
+         ! Storing Beam specific properties
+         p%ElemProps(i)%Ixx    = Ixx
+         p%ElemProps(i)%Iyy    = Iyy
+         p%ElemProps(i)%Jzz    = Jzz
+         p%ElemProps(i)%Shear  = Shear
+         p%ElemProps(i)%Kappa_x  = kappa
+         p%ElemProps(i)%Kappa_y  = kappa
+         p%ElemProps(i)%YoungE = E
+         p%ElemProps(i)%ShearG = G
+         p%ElemProps(i)%Area   = A
+         p%ElemProps(i)%Rho    = rho
+         p%ElemProps(i)%D      = (/D1, D2/)
+    
+      else if (eType==idMemberBeamCircDiag) then
          E   = Init%PropsB(P1, 2) ! TODO E2 
          G   = Init%PropsB(P1, 3) ! TODO G2
          rho = Init%PropsB(P1, 4) ! TODO rho2
@@ -2270,6 +2349,10 @@ SUBROUTINE ElemM(ep, Me)
    if (ep%eType==idMemberBeamCirc) then
       !Calculate Ke, Me to be used for output
       CALL ElemM_Beam(eP%Area, eP%Length, eP%Ixx, eP%Iyy, eP%Jzz,  eP%rho, eP%DirCos, Me)
+      
+   else if (ep%eType==idMemberBeamCircDiag) then
+      !Calculate Ke, Me to be used for output
+      CALL ElemM_BeamDiag(eP%Area, eP%Length, eP%Ixx, eP%Iyy, eP%Jzz,  eP%rho, eP%DirCos, Me)
 
    else if (ep%eType==idMemberCable) then
       Eps0 = ep%T0/(ep%YoungE*ep%Area)
@@ -2293,6 +2376,9 @@ SUBROUTINE ElemK(ep, Ke)
    if (ep%eType==idMemberBeamCirc) then
       CALL ElemK_Beam( eP%Area, eP%Length, eP%Ixx, eP%Iyy, eP%Jzz, eP%Shear, eP%Kappa_x, eP%Kappa_y, eP%YoungE, eP%ShearG, eP%DirCos, Ke)
 
+   else if (ep%eType==idMemberBeamCircDiag) then
+      CALL ElemK_BeamDiag( eP%Area, eP%Length, eP%Ixx, eP%Iyy, eP%Jzz, eP%Shear, eP%Kappa_x, eP%Kappa_y, eP%YoungE, eP%ShearG, eP%DirCos, Ke)
+   
    else if (ep%eType==idMemberCable) then
       CALL ElemK_Cable(ep%Area, ep%Length, ep%YoungE, ep%T0, eP%DirCos, Ke)
 
@@ -2307,6 +2393,8 @@ SUBROUTINE ElemF(ep, gravity, Fg, Fo)
    REAL(FEKi), INTENT(OUT)    :: Fg(12)
    REAL(FEKi), INTENT(OUT)    :: Fo(12)
    if (ep%eType==idMemberBeamCirc) then
+      Fo(1:12)=0.0_FEKi
+   else if (ep%eType==idMemberBeamCircDiag) then
       Fo(1:12)=0.0_FEKi
    else if (ep%eType==idMemberCable) then
       CALL ElemF_Cable(ep%T0, ep%DirCos, Fo)
