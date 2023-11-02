@@ -405,16 +405,12 @@ SUBROUTINE SD_ReIndex_CreateNodesAndElems(Init,p, ErrStat, ErrMsg)
          end if
          ! Test that the two properties match for non-beam 
          if (mType/=idMemberBeamCirc) then
-             if (Init%Members(iMem, iMProp)/=Init%Members(iMem, iMProp+1)) then
-                ! NOTE: for non circular beams, we could just check that E, rho, G are the same for both properties
-                call Fatal('Property IDs should be the same at both joints for arbitrary beams, rigid links, and cables. Check member with ID: '//TRIM(Num2LStr(Init%Members(iMem,1))))
-                return
-             endif
-         elseif (mType/=idMemberBeamCircDiag) then
-             if (Init%Members(iMem, iMProp)/=Init%Members(iMem, iMProp+1)) then
-                ! NOTE: for non circular beams, we could just check that E, rho, G are the same for both properties
-                call Fatal('Property IDs should be the same at both joints for arbitrary beams, rigid links, and cables. Check member with ID: '//TRIM(Num2LStr(Init%Members(iMem,1))))
-                return
+             if (mType/=idMemberBeamCircDiag) then
+                 if (Init%Members(iMem, iMProp)/=Init%Members(iMem, iMProp+1)) then
+                    ! NOTE: for non circular beams, we could just check that E, rho, G are the same for both properties
+                    call Fatal('Property IDs should be the same at both joints for arbitrary beams, rigid links, and cables. Check member with ID: '//TRIM(Num2LStr(Init%Members(iMem,1))))
+                    return
+                 endif
              endif
          endif
          if (p%Elems(iMem,n)<=0) then
@@ -627,7 +623,7 @@ SUBROUTINE SD_Discrt(Init,p, ErrStat, ErrMsg)
              ! If both dd and dt are 0, no interpolation is needed, and we can use the same property set for new nodes/elements. otherwise we'll have to create new properties for each new node
            
             CreateNewProp = .NOT. ( EqualRealNos( dd , 0.0_ReKi ) .AND.  EqualRealNos( dt , 0.0_ReKi ) ) 
-          if (eType == idMemberBeamCircDiag) then
+          elseif (eType == idMemberBeamCircDiag) then
 
             d1 = TempProps(Prop1, 5)
             t1 = TempProps(Prop1, 6)
@@ -2352,7 +2348,7 @@ SUBROUTINE ElemM(ep, Me)
       
    else if (ep%eType==idMemberBeamCircDiag) then
       !Calculate Ke, Me to be used for output
-      CALL ElemM_BeamDiag(eP%Area, eP%Length, eP%Ixx, eP%Iyy, eP%Jzz,  eP%rho, eP%DirCos, Me)
+      CALL ElemM_Beam(eP%Area, eP%Length, eP%Ixx, eP%Iyy, eP%Jzz,  eP%rho, eP%DirCos, Me)
 
    else if (ep%eType==idMemberCable) then
       Eps0 = ep%T0/(ep%YoungE*ep%Area)
