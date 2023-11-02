@@ -1251,6 +1251,10 @@ SUBROUTINE AssembleKM(Init, p, ErrStat, ErrMsg)
    DO i = 1, Init%NElem
       ! --- Element Me,Ke,Fg, Fce
       CALL ElemM(p%ElemProps(i), Me)
+      if (i == 23) then
+        print*,'Member',i,' mass matrix'
+        print*, Me
+      endif
       CALL ElemK(p%ElemProps(i), Ke)
       CALL ElemF(p%ElemProps(i), Init%g, FGe, FCe)
 
