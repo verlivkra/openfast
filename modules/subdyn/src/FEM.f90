@@ -396,6 +396,7 @@ SUBROUTINE BreakSysMtrx(MM, KK, IDR, IDL, nR, nL, MRR, MLL, MRL, KRR, KLL, KRL, 
          ENDDO 
       ENDDO
    endif
+   print*, 'KRL ', KRL
 END SUBROUTINE BreakSysMtrx
 
 !------------------------------------------------------------------------------------------------------
