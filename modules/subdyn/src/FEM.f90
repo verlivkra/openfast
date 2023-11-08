@@ -1143,13 +1143,24 @@ SUBROUTINE ElemK_BeamDiag(A, L, Ixx, Iyy, Jzz, Shear, kappa_x, kappa_y, E, G, Di
    K(12, 12) = G*Jzz/L
    K(10, 10) = (4.0_FEKi + Ky)*E*Ixx / ( L*(1.0_FEKi+Ky) )  
    K(11, 11) = (4.0_FEKi + Kx)*E*Iyy / ( L*(1.0_FEKi+Kx) )
-   
+   K( 4, 10) = (2.0_FEKi-Ky)*E*Ixx / ( L*(1.0_FEKi+Ky) )
+   K( 5, 11) = (2.0_FEKi-Kx)*E*Iyy / ( L*(1.0_FEKi+Kx) )
    K( 3,  3)  = K(9,9)
    K( 1,  1)  = K(7,7)
    K( 2,  2)  = K(8,8)
    K( 6,  6)  = K(12,12)
    K( 4,  4)  = K(10,10)
    K(5,5)  = K(11,11)
+   K(10,4) = K(4,10)
+   K(11,5) = K(5,11)
+   K(12,6)= -K(6,6)
+   K(9,3) = -K(3,3)
+   K(7,1) = -K(1,1)
+   K(8,2) = -K(2,2)
+   K(6, 12) = -K(6,6)
+   K(3, 9)  = -K(3,3)
+   K(1, 7)  = -K(1,1)
+   K(2, 8)  = -K(2,2)
    
    
    DC = 0.0_FEKi
