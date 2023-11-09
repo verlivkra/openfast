@@ -3606,6 +3606,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    M_O(2,1  )= 0.0_ReKi; M_O(2,3  )= 0.0_ReKi; M_O(2,5  )= 0.0_ReKi;
    M_O(3,1:2)= 0.0_ReKi; M_O(3,6  )= 0.0_ReKi
    M_O(4,1  )= 0.0_ReKi; M_O(5,2  )= 0.0_ReKi; M_O(6,3  )= 0.0_ReKi;
+   print*, 'M_O', M_O
 
    call rigidBodyMassMatrixCOG(M_O, rOG)   ! r_OG=distance from origin to center of mass
    call translateMassMatrixToCOG(M_O, M_G) ! M_G mass matrix at COG
@@ -3771,7 +3772,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
        mLength=MemberLength(Init%Members(i,1),Init,ErrStat,ErrMsg) ! TODO double check mass and length
        IF (ErrStat .EQ. ErrID_None) THEN
         mType =  Init%Members(I, iMType) ! 
-        if (mType==idMemberBeamCirc) then
+        if (mType==idMemberBeamCirc .or. mType==idMemberBeamCircDiag) then
            iProp(1) = FINDLOCI(Init%PropSetsB(:,1), propIDs(1))
            iProp(2) = FINDLOCI(Init%PropSetsB(:,1), propIDs(2))
            mMass= BeamMass(Init%PropSetsB(iProp(1),4),Init%PropSetsB(iProp(1),5),Init%PropSetsB(iProp(1),6),   &
@@ -3780,14 +3781,6 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
            WRITE(UnSum, '("#",I9,I10,I10,I10,I10,ES15.6E2,ES15.6E2, A3,'//Num2LStr(Init%NDiv + 1 )//'(I6))') Init%Members(i,1:3),propIDs(1),propIDs(2),&
                  mMass,mLength,' ',(Init%MemberNodes(i, j), j = 1, Init%NDiv+1)
         
-        else if (mType==idMemberBeamCircDiag) then
-           iProp(1) = FINDLOCI(Init%PropSetsB(:,1), propIDs(1))
-           iProp(2) = FINDLOCI(Init%PropSetsB(:,1), propIDs(2))
-           mMass= BeamMass(Init%PropSetsB(iProp(1),4),Init%PropSetsB(iProp(1),5),Init%PropSetsB(iProp(1),6),   &
-                             Init%PropSetsB(iProp(2),4),Init%PropSetsB(iProp(2),5),Init%PropSetsB(iProp(2),6), mLength, method=-1)
-
-           WRITE(UnSum, '("#",I9,I10,I10,I10,I10,ES15.6E2,ES15.6E2, A3,'//Num2LStr(Init%NDiv + 1 )//'(I6))') Init%Members(i,1:3),propIDs(1),propIDs(2),&
-                 mMass,mLength,' ',(Init%MemberNodes(i, j), j = 1, Init%NDiv+1)  
         
         else if (mType==idMemberCable) then
            iProp(1) = FINDLOCI(Init%PropSetsC(:,1), propIDs(1))

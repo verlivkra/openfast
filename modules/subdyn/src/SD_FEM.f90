@@ -609,21 +609,7 @@ SUBROUTINE SD_Discrt(Init,p, ErrStat, ErrMsg)
           dy = ( y2 - y1 )/Init%NDiv
           dz = ( z2 - z1 )/Init%NDiv
 
-          if (eType == idMemberBeamCirc) then
-
-            d1 = TempProps(Prop1, 5)
-            t1 = TempProps(Prop1, 6)
-
-            d2 = TempProps(Prop2, 5)
-            t2 = TempProps(Prop2, 6)
-            
-            dd = ( d2 - d1 )/Init%NDiv
-            dt = ( t2 - t1 )/Init%NDiv
-
-             ! If both dd and dt are 0, no interpolation is needed, and we can use the same property set for new nodes/elements. otherwise we'll have to create new properties for each new node
-           
-            CreateNewProp = .NOT. ( EqualRealNos( dd , 0.0_ReKi ) .AND.  EqualRealNos( dt , 0.0_ReKi ) ) 
-          elseif (eType == idMemberBeamCircDiag) then
+          if (eType == idMemberBeamCirc .OR. eType == idMemberBeamCircDiag) then
 
             d1 = TempProps(Prop1, 5)
             t1 = TempProps(Prop1, 6)
@@ -908,54 +894,7 @@ SUBROUTINE SetElementProperties(Init, p, ErrStat, ErrMsg)
       p%ElemProps(i)%T0      = -9.99e+36
 
       ! --- Properties that are specific to some elements
-      if (eType==idMemberBeamCirc) then
-         E   = Init%PropsB(P1, 2) ! TODO E2 
-         G   = Init%PropsB(P1, 3) ! TODO G2
-         rho = Init%PropsB(P1, 4) ! TODO rho2
-         D1  = Init%PropsB(P1, 5)
-         t1  = Init%PropsB(P1, 6)
-         D2  = Init%PropsB(P2, 5)
-         t2  = Init%PropsB(P2, 6)
-         r1 = 0.25*(D1 + D2)
-         t  = 0.5*(t1+t2)
-         if ( EqualRealNos(t, 0.0_ReKi) ) then
-            r2 = 0
-         else
-            r2 = r1 - t
-         endif
-         A = Pi_D*(r1*r1-r2*r2)
-         Ixx = 0.25*Pi_D*(r1**4-r2**4)
-         Iyy = Ixx
-         Jzz = 2.0*Ixx
-         
-         if( Init%FEMMod == 1 ) then ! uniform Euler-Bernoulli
-            Shear = .false.
-            kappa = 0
-         elseif( Init%FEMMod == 3 ) then ! uniform Timoshenko
-            Shear = .true.
-          ! kappa = 0.53            
-            ! equation 13 (Steinboeck et al) in SubDyn Theory Manual 
-            nu = E / (2.0_ReKi*G) - 1.0_ReKi
-            D_outer = 2.0_ReKi * r1  ! average (outer) diameter
-            D_inner = D_outer - 2*t  ! remove 2x thickness to get inner diameter
-            ratioSq = ( D_inner / D_outer)**2
-            kappa =   ( 6.0 * (1.0 + nu) **2 * (1.0 + ratioSq)**2 ) &
-                    / ( ( 1.0 + ratioSq )**2 * ( 7.0 + 14.0*nu + 8.0*nu**2 ) + 4.0 * ratioSq * ( 5.0 + 10.0*nu + 4.0 *nu**2 ) )
-         endif
-         ! Storing Beam specific properties
-         p%ElemProps(i)%Ixx    = Ixx
-         p%ElemProps(i)%Iyy    = Iyy
-         p%ElemProps(i)%Jzz    = Jzz
-         p%ElemProps(i)%Shear  = Shear
-         p%ElemProps(i)%Kappa_x  = kappa
-         p%ElemProps(i)%Kappa_y  = kappa
-         p%ElemProps(i)%YoungE = E
-         p%ElemProps(i)%ShearG = G
-         p%ElemProps(i)%Area   = A
-         p%ElemProps(i)%Rho    = rho
-         p%ElemProps(i)%D      = (/D1, D2/)
-    
-      else if (eType==idMemberBeamCircDiag) then
+      if (eType==idMemberBeamCirc .OR. eType==idMemberBeamCircDiag) then
          E   = Init%PropsB(P1, 2) ! TODO E2 
          G   = Init%PropsB(P1, 3) ! TODO G2
          rho = Init%PropsB(P1, 4) ! TODO rho2
@@ -1260,6 +1199,9 @@ SUBROUTINE AssembleKM(Init, p, ErrStat, ErrMsg)
 
       ! --- Assembly in global unconstrained system
       IDOF = p%ElemsDOF(1:12, i)
+      if (i==23) then 
+          print*, 'Element 23 FGe', FGe
+      endif
       p%FG     ( IDOF )  = p%FG( IDOF )   + FGe(1:12)+ FCe(1:12) ! Note: gravity and pretension cable forces
       Init%K(IDOF, IDOF) = Init%K( IDOF, IDOF) + Ke(1:12,1:12)
       Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12)
@@ -2346,11 +2288,7 @@ SUBROUTINE ElemM(ep, Me)
    TYPE(ElemPropType), INTENT(IN) :: eP        !< Element Property
    REAL(FEKi), INTENT(OUT)        :: Me(12, 12)
    REAL(FEKi) :: L0, Eps0
-   if (ep%eType==idMemberBeamCirc) then
-      !Calculate Ke, Me to be used for output
-      CALL ElemM_Beam(eP%Area, eP%Length, eP%Ixx, eP%Iyy, eP%Jzz,  eP%rho, eP%DirCos, Me)
-      
-   else if (ep%eType==idMemberBeamCircDiag) then
+   if (ep%eType==idMemberBeamCirc .or. ep%eType==idMemberBeamCircDiag) then
       !Calculate Ke, Me to be used for output
       CALL ElemM_Beam(eP%Area, eP%Length, eP%Ixx, eP%Iyy, eP%Jzz,  eP%rho, eP%DirCos, Me)
 
