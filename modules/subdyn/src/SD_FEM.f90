@@ -508,8 +508,9 @@ SUBROUTINE SD_Discrt(Init,p, ErrStat, ErrMsg)
        Prop2 = p%Elems(I, iMProp+1)
        eType = p%Elems(I, iMType  )
 
-       if ( Node1==Node2 ) THEN
-          CALL Fatal(' Same starting and ending node in the member. (See member at position '//trim(num2lstr(I))//' in member list)')
+       if (( Node1==Node2) .AND. (eType/=idMemberSpring)) THEN
+           print*, 'eType', eType
+          CALL Fatal(' Same starting and ending node in the member. This is only ok for spring element. (See member at position '//trim(num2lstr(I))//' in member list)')
           return
        endif
 
