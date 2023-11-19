@@ -396,7 +396,6 @@ SUBROUTINE BreakSysMtrx(MM, KK, IDR, IDL, nR, nL, MRR, MLL, MRL, KRR, KLL, KRL, 
          ENDDO 
       ENDDO
    endif
-   print*, 'KRL ', KRL
 END SUBROUTINE BreakSysMtrx
 
 !------------------------------------------------------------------------------------------------------
@@ -1157,6 +1156,57 @@ SUBROUTINE ElemK_Cable(A, L, E, T0, DirCos, K)
    
    K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
 END SUBROUTINE ElemK_Cable
+!------------------------------------------------------------------------------------------------------
+!> Element stiffness matrix for spring element
+SUBROUTINE ElemK_Spring(ktxx, ktyy, ktzz, krxx, kryy, krzz, DirCos, K)
+   REAL(ReKi), INTENT( IN) :: ktxx, ktyy, ktzz, krxx, kryy, krzz
+   REAL(FEKi), INTENT( IN) :: DirCos(3,3) !< From element to global: xg = DC.xe,  Kg = DC.Ke.DC^t
+   REAL(FEKi), INTENT(OUT) :: K(12, 12) 
+   ! Local variables
+   REAL(FEKi)                            :: DC(12, 12)
+   
+   K(1:12,1:12) = 0.0_FEKi
+   
+   ! Notation following the member local coordinate system if SubDyn
+   K( 1,  1) = ktxx ! Displacement in local x 
+   K( 2,  2) = ktyy ! Displacement in local y
+   K( 3,  3) = ktzz ! Axial stiffness
+   K( 4,  4) = krxx ! Bending about local x 
+   K( 5,  5) = kryy ! Bending about local y 
+   K( 6,  6) = krzz ! Torsional stiffness
+
+   K( 7,  7)  = K( 1,  1) ! Displacement in local x 
+   K( 8,  8)  = K( 2,  2) ! Displacement in local y
+   K( 9,  9)  = K( 3,  3) ! Axial stiffness
+   K(10, 10)  = K( 4,  4) ! VLK: Is this correct?
+   K(11, 11)  = K( 5,  5) ! VLK: Is this correct?
+   K(12, 12)  = K( 6,  6) ! VLK: Is this correct?
+
+   K( 1,  7)  =-K( 1,  1)
+   K( 2,  8)  =-K( 2,  2)
+   K( 3,  9)  =-K( 3,  3) 
+   K( 4, 10)  =-K( 4,  4) 
+   K( 5, 11)  =-K( 5,  5) 
+   K( 6, 12)  =-K( 6,  6) 
+   
+   K( 7,  1)  = K( 1,  7) 
+   K( 8,  2) =  K( 2,  8) 
+   K( 9,  3) =  K( 3,  9) 
+   K(10,  4) =  K( 4, 10) 
+   K(11,  5) =  K( 5, 11) 
+   K(12,  6) =  K( 6, 12) 
+   
+   DC = 0.0_FEKi
+   DC( 1: 3,  1: 3) = DirCos
+   DC( 4: 6,  4: 6) = DirCos
+   DC( 7: 9,  7: 9) = DirCos
+   DC(10:12, 10:12) = DirCos
+   
+   print*, 'K', K
+   
+   K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
+   
+END SUBROUTINE ElemK_Spring
 !------------------------------------------------------------------------------------------------------
 !> Element mass matrix for classical beam elements
 SUBROUTINE ElemM_Beam(A, L, Ixx, Iyy, Jzz, rho, DirCos, M)

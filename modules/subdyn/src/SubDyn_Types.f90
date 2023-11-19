@@ -77,6 +77,12 @@ IMPLICIT NONE
     REAL(ReKi)  :: Area      !< Area of an element [m^2]
     REAL(ReKi)  :: Rho      !< Density [kg/m^3]
     REAL(ReKi)  :: T0      !< Pretension  [N]
+    REAL(ReKi)  :: ktxx      !< Spring translational stiffness x [-]
+    REAL(ReKi)  :: ktyy      !< Spring translational stiffness y [-]
+    REAL(ReKi)  :: ktzz      !< Spring translational stiffness z [-]
+    REAL(ReKi)  :: krxx      !< Spring rotational stiffness x [-]
+    REAL(ReKi)  :: kryy      !< Spring rotational stiffness y [-]
+    REAL(ReKi)  :: krzz      !< Spring rotational stiffness z [-]
     REAL(R8Ki) , DIMENSION(1:3,1:3)  :: DirCos      !< Element direction cosine matrix [-]
   END TYPE ElemPropType
 ! =======================
@@ -121,6 +127,7 @@ IMPLICIT NONE
     INTEGER(IntKi)  :: NPropSetsB      !< Number of property sets for beams [-]
     INTEGER(IntKi)  :: NPropSetsC      !< Number of property sets for cables [-]
     INTEGER(IntKi)  :: NPropSetsR      !< Number of property sets for rigid links [-]
+    INTEGER(IntKi)  :: NPropSetsS      !< Number of property sets for springs [-]
     INTEGER(IntKi)  :: NCMass      !< Number of joints with concentrated mass [-]
     INTEGER(IntKi)  :: NCOSMs      !< Number of independent cosine matrices [-]
     INTEGER(IntKi)  :: FEMMod      !< FEM switch  element model in the FEM [-]
@@ -130,6 +137,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropSetsB      !< Property sets number and values [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropSetsC      !< Property ID and values for cables [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropSetsR      !< Property ID and values for rigid link [-]
+    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropSetsS      !< Property ID and values for springs [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropSetsX      !< Extended property sets [-]
     REAL(R8Ki) , DIMENSION(:,:), ALLOCATABLE  :: COSMs      !< Independent direction cosine matrices [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: CMass      !< Concentrated mass information [-]
@@ -151,10 +159,12 @@ IMPLICIT NONE
     INTEGER(IntKi)  :: NPropB      !< Total number of property sets for Beams [-]
     INTEGER(IntKi)  :: NPropC      !< Total number of property sets for Cable [-]
     INTEGER(IntKi)  :: NPropR      !< Total number of property sets for Rigid [-]
+    INTEGER(IntKi)  :: NPropS      !< Total number of property sets for Spring [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: Nodes      !< Nodes number and coordinates            [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropsB      !< Property sets and values for Beams      [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropsC      !< Property sets and values for Cable      [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropsR      !< Property sets and values for Rigid link [-]
+    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropsS      !< Property sets and values for Springlink [-]
     REAL(R8Ki) , DIMENSION(:,:), ALLOCATABLE  :: K      !< System stiffness matrix                 [-]
     REAL(R8Ki) , DIMENSION(:,:), ALLOCATABLE  :: M      !< System mass matrix                      [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: ElemProps      !< Element properties(A, L, Ixx, Iyy, Jzz, Shear, Kappa, E, G, Rho, DirCos(1,1), DirCos(2, 1), ....., DirCos(3, 3) ) [-]
@@ -1719,6 +1729,12 @@ ENDIF
     DstElemPropTypeData%Area = SrcElemPropTypeData%Area
     DstElemPropTypeData%Rho = SrcElemPropTypeData%Rho
     DstElemPropTypeData%T0 = SrcElemPropTypeData%T0
+    DstElemPropTypeData%ktxx = SrcElemPropTypeData%ktxx
+    DstElemPropTypeData%ktyy = SrcElemPropTypeData%ktyy
+    DstElemPropTypeData%ktzz = SrcElemPropTypeData%ktzz
+    DstElemPropTypeData%krxx = SrcElemPropTypeData%krxx
+    DstElemPropTypeData%kryy = SrcElemPropTypeData%kryy
+    DstElemPropTypeData%krzz = SrcElemPropTypeData%krzz
     DstElemPropTypeData%DirCos = SrcElemPropTypeData%DirCos
  END SUBROUTINE SD_CopyElemPropType
 
@@ -1794,6 +1810,12 @@ ENDIF
       Re_BufSz   = Re_BufSz   + 1  ! Area
       Re_BufSz   = Re_BufSz   + 1  ! Rho
       Re_BufSz   = Re_BufSz   + 1  ! T0
+      Re_BufSz   = Re_BufSz   + 1  ! ktxx
+      Re_BufSz   = Re_BufSz   + 1  ! ktyy
+      Re_BufSz   = Re_BufSz   + 1  ! ktzz
+      Re_BufSz   = Re_BufSz   + 1  ! krxx
+      Re_BufSz   = Re_BufSz   + 1  ! kryy
+      Re_BufSz   = Re_BufSz   + 1  ! krzz
       Db_BufSz   = Db_BufSz   + SIZE(InData%DirCos)  ! DirCos
   IF ( Re_BufSz  .GT. 0 ) THEN 
      ALLOCATE( ReKiBuf(  Re_BufSz  ), STAT=ErrStat2 )
@@ -1851,6 +1873,18 @@ ENDIF
     ReKiBuf(Re_Xferred) = InData%Rho
     Re_Xferred = Re_Xferred + 1
     ReKiBuf(Re_Xferred) = InData%T0
+    Re_Xferred = Re_Xferred + 1
+    ReKiBuf(Re_Xferred) = InData%ktxx
+    Re_Xferred = Re_Xferred + 1
+    ReKiBuf(Re_Xferred) = InData%ktyy
+    Re_Xferred = Re_Xferred + 1
+    ReKiBuf(Re_Xferred) = InData%ktzz
+    Re_Xferred = Re_Xferred + 1
+    ReKiBuf(Re_Xferred) = InData%krxx
+    Re_Xferred = Re_Xferred + 1
+    ReKiBuf(Re_Xferred) = InData%kryy
+    Re_Xferred = Re_Xferred + 1
+    ReKiBuf(Re_Xferred) = InData%krzz
     Re_Xferred = Re_Xferred + 1
     DO i2 = LBOUND(InData%DirCos,2), UBOUND(InData%DirCos,2)
       DO i1 = LBOUND(InData%DirCos,1), UBOUND(InData%DirCos,1)
@@ -1919,6 +1953,18 @@ ENDIF
     OutData%Rho = ReKiBuf(Re_Xferred)
     Re_Xferred = Re_Xferred + 1
     OutData%T0 = ReKiBuf(Re_Xferred)
+    Re_Xferred = Re_Xferred + 1
+    OutData%ktxx = ReKiBuf(Re_Xferred)
+    Re_Xferred = Re_Xferred + 1
+    OutData%ktyy = ReKiBuf(Re_Xferred)
+    Re_Xferred = Re_Xferred + 1
+    OutData%ktzz = ReKiBuf(Re_Xferred)
+    Re_Xferred = Re_Xferred + 1
+    OutData%krxx = ReKiBuf(Re_Xferred)
+    Re_Xferred = Re_Xferred + 1
+    OutData%kryy = ReKiBuf(Re_Xferred)
+    Re_Xferred = Re_Xferred + 1
+    OutData%krzz = ReKiBuf(Re_Xferred)
     Re_Xferred = Re_Xferred + 1
     i1_l = LBOUND(OutData%DirCos,1)
     i1_u = UBOUND(OutData%DirCos,1)
@@ -3147,6 +3193,7 @@ ENDIF
     DstInitTypeData%NPropSetsB = SrcInitTypeData%NPropSetsB
     DstInitTypeData%NPropSetsC = SrcInitTypeData%NPropSetsC
     DstInitTypeData%NPropSetsR = SrcInitTypeData%NPropSetsR
+    DstInitTypeData%NPropSetsS = SrcInitTypeData%NPropSetsS
     DstInitTypeData%NCMass = SrcInitTypeData%NCMass
     DstInitTypeData%NCOSMs = SrcInitTypeData%NCOSMs
     DstInitTypeData%FEMMod = SrcInitTypeData%FEMMod
@@ -3207,6 +3254,20 @@ IF (ALLOCATED(SrcInitTypeData%PropSetsR)) THEN
     END IF
   END IF
     DstInitTypeData%PropSetsR = SrcInitTypeData%PropSetsR
+ENDIF
+IF (ALLOCATED(SrcInitTypeData%PropSetsS)) THEN
+  i1_l = LBOUND(SrcInitTypeData%PropSetsS,1)
+  i1_u = UBOUND(SrcInitTypeData%PropSetsS,1)
+  i2_l = LBOUND(SrcInitTypeData%PropSetsS,2)
+  i2_u = UBOUND(SrcInitTypeData%PropSetsS,2)
+  IF (.NOT. ALLOCATED(DstInitTypeData%PropSetsS)) THEN 
+    ALLOCATE(DstInitTypeData%PropSetsS(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstInitTypeData%PropSetsS.', ErrStat, ErrMsg,RoutineName)
+      RETURN
+    END IF
+  END IF
+    DstInitTypeData%PropSetsS = SrcInitTypeData%PropSetsS
 ENDIF
 IF (ALLOCATED(SrcInitTypeData%PropSetsX)) THEN
   i1_l = LBOUND(SrcInitTypeData%PropSetsX,1)
@@ -3379,6 +3440,7 @@ ENDIF
     DstInitTypeData%NPropB = SrcInitTypeData%NPropB
     DstInitTypeData%NPropC = SrcInitTypeData%NPropC
     DstInitTypeData%NPropR = SrcInitTypeData%NPropR
+    DstInitTypeData%NPropS = SrcInitTypeData%NPropS
 IF (ALLOCATED(SrcInitTypeData%Nodes)) THEN
   i1_l = LBOUND(SrcInitTypeData%Nodes,1)
   i1_u = UBOUND(SrcInitTypeData%Nodes,1)
@@ -3434,6 +3496,20 @@ IF (ALLOCATED(SrcInitTypeData%PropsR)) THEN
     END IF
   END IF
     DstInitTypeData%PropsR = SrcInitTypeData%PropsR
+ENDIF
+IF (ALLOCATED(SrcInitTypeData%PropsS)) THEN
+  i1_l = LBOUND(SrcInitTypeData%PropsS,1)
+  i1_u = UBOUND(SrcInitTypeData%PropsS,1)
+  i2_l = LBOUND(SrcInitTypeData%PropsS,2)
+  i2_u = UBOUND(SrcInitTypeData%PropsS,2)
+  IF (.NOT. ALLOCATED(DstInitTypeData%PropsS)) THEN 
+    ALLOCATE(DstInitTypeData%PropsS(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstInitTypeData%PropsS.', ErrStat, ErrMsg,RoutineName)
+      RETURN
+    END IF
+  END IF
+    DstInitTypeData%PropsS = SrcInitTypeData%PropsS
 ENDIF
 IF (ALLOCATED(SrcInitTypeData%K)) THEN
   i1_l = LBOUND(SrcInitTypeData%K,1)
@@ -3555,6 +3631,9 @@ ENDIF
 IF (ALLOCATED(InitTypeData%PropSetsR)) THEN
   DEALLOCATE(InitTypeData%PropSetsR)
 ENDIF
+IF (ALLOCATED(InitTypeData%PropSetsS)) THEN
+  DEALLOCATE(InitTypeData%PropSetsS)
+ENDIF
 IF (ALLOCATED(InitTypeData%PropSetsX)) THEN
   DEALLOCATE(InitTypeData%PropSetsX)
 ENDIF
@@ -3602,6 +3681,9 @@ IF (ALLOCATED(InitTypeData%PropsC)) THEN
 ENDIF
 IF (ALLOCATED(InitTypeData%PropsR)) THEN
   DEALLOCATE(InitTypeData%PropsR)
+ENDIF
+IF (ALLOCATED(InitTypeData%PropsS)) THEN
+  DEALLOCATE(InitTypeData%PropsS)
 ENDIF
 IF (ALLOCATED(InitTypeData%K)) THEN
   DEALLOCATE(InitTypeData%K)
@@ -3668,6 +3750,7 @@ ENDIF
       Int_BufSz  = Int_BufSz  + 1  ! NPropSetsB
       Int_BufSz  = Int_BufSz  + 1  ! NPropSetsC
       Int_BufSz  = Int_BufSz  + 1  ! NPropSetsR
+      Int_BufSz  = Int_BufSz  + 1  ! NPropSetsS
       Int_BufSz  = Int_BufSz  + 1  ! NCMass
       Int_BufSz  = Int_BufSz  + 1  ! NCOSMs
       Int_BufSz  = Int_BufSz  + 1  ! FEMMod
@@ -3692,6 +3775,11 @@ ENDIF
   IF ( ALLOCATED(InData%PropSetsR) ) THEN
     Int_BufSz   = Int_BufSz   + 2*2  ! PropSetsR upper/lower bounds for each dimension
       Re_BufSz   = Re_BufSz   + SIZE(InData%PropSetsR)  ! PropSetsR
+  END IF
+  Int_BufSz   = Int_BufSz   + 1     ! PropSetsS allocated yes/no
+  IF ( ALLOCATED(InData%PropSetsS) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*2  ! PropSetsS upper/lower bounds for each dimension
+      Re_BufSz   = Re_BufSz   + SIZE(InData%PropSetsS)  ! PropSetsS
   END IF
   Int_BufSz   = Int_BufSz   + 1     ! PropSetsX allocated yes/no
   IF ( ALLOCATED(InData%PropSetsX) ) THEN
@@ -3762,6 +3850,7 @@ ENDIF
       Int_BufSz  = Int_BufSz  + 1  ! NPropB
       Int_BufSz  = Int_BufSz  + 1  ! NPropC
       Int_BufSz  = Int_BufSz  + 1  ! NPropR
+      Int_BufSz  = Int_BufSz  + 1  ! NPropS
   Int_BufSz   = Int_BufSz   + 1     ! Nodes allocated yes/no
   IF ( ALLOCATED(InData%Nodes) ) THEN
     Int_BufSz   = Int_BufSz   + 2*2  ! Nodes upper/lower bounds for each dimension
@@ -3781,6 +3870,11 @@ ENDIF
   IF ( ALLOCATED(InData%PropsR) ) THEN
     Int_BufSz   = Int_BufSz   + 2*2  ! PropsR upper/lower bounds for each dimension
       Re_BufSz   = Re_BufSz   + SIZE(InData%PropsR)  ! PropsR
+  END IF
+  Int_BufSz   = Int_BufSz   + 1     ! PropsS allocated yes/no
+  IF ( ALLOCATED(InData%PropsS) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*2  ! PropsS upper/lower bounds for each dimension
+      Re_BufSz   = Re_BufSz   + SIZE(InData%PropsS)  ! PropsS
   END IF
   Int_BufSz   = Int_BufSz   + 1     ! K allocated yes/no
   IF ( ALLOCATED(InData%K) ) THEN
@@ -3863,6 +3957,8 @@ ENDIF
     IntKiBuf(Int_Xferred) = InData%NPropSetsC
     Int_Xferred = Int_Xferred + 1
     IntKiBuf(Int_Xferred) = InData%NPropSetsR
+    Int_Xferred = Int_Xferred + 1
+    IntKiBuf(Int_Xferred) = InData%NPropSetsS
     Int_Xferred = Int_Xferred + 1
     IntKiBuf(Int_Xferred) = InData%NCMass
     Int_Xferred = Int_Xferred + 1
@@ -3950,6 +4046,26 @@ ENDIF
       DO i2 = LBOUND(InData%PropSetsR,2), UBOUND(InData%PropSetsR,2)
         DO i1 = LBOUND(InData%PropSetsR,1), UBOUND(InData%PropSetsR,1)
           ReKiBuf(Re_Xferred) = InData%PropSetsR(i1,i2)
+          Re_Xferred = Re_Xferred + 1
+        END DO
+      END DO
+  END IF
+  IF ( .NOT. ALLOCATED(InData%PropSetsS) ) THEN
+    IntKiBuf( Int_Xferred ) = 0
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    IntKiBuf( Int_Xferred ) = 1
+    Int_Xferred = Int_Xferred + 1
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%PropSetsS,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%PropSetsS,1)
+    Int_Xferred = Int_Xferred + 2
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%PropSetsS,2)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%PropSetsS,2)
+    Int_Xferred = Int_Xferred + 2
+
+      DO i2 = LBOUND(InData%PropSetsS,2), UBOUND(InData%PropSetsS,2)
+        DO i1 = LBOUND(InData%PropSetsS,1), UBOUND(InData%PropSetsS,1)
+          ReKiBuf(Re_Xferred) = InData%PropSetsS(i1,i2)
           Re_Xferred = Re_Xferred + 1
         END DO
       END DO
@@ -4207,6 +4323,8 @@ ENDIF
     Int_Xferred = Int_Xferred + 1
     IntKiBuf(Int_Xferred) = InData%NPropR
     Int_Xferred = Int_Xferred + 1
+    IntKiBuf(Int_Xferred) = InData%NPropS
+    Int_Xferred = Int_Xferred + 1
   IF ( .NOT. ALLOCATED(InData%Nodes) ) THEN
     IntKiBuf( Int_Xferred ) = 0
     Int_Xferred = Int_Xferred + 1
@@ -4283,6 +4401,26 @@ ENDIF
       DO i2 = LBOUND(InData%PropsR,2), UBOUND(InData%PropsR,2)
         DO i1 = LBOUND(InData%PropsR,1), UBOUND(InData%PropsR,1)
           ReKiBuf(Re_Xferred) = InData%PropsR(i1,i2)
+          Re_Xferred = Re_Xferred + 1
+        END DO
+      END DO
+  END IF
+  IF ( .NOT. ALLOCATED(InData%PropsS) ) THEN
+    IntKiBuf( Int_Xferred ) = 0
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    IntKiBuf( Int_Xferred ) = 1
+    Int_Xferred = Int_Xferred + 1
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%PropsS,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%PropsS,1)
+    Int_Xferred = Int_Xferred + 2
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%PropsS,2)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%PropsS,2)
+    Int_Xferred = Int_Xferred + 2
+
+      DO i2 = LBOUND(InData%PropsS,2), UBOUND(InData%PropsS,2)
+        DO i1 = LBOUND(InData%PropsS,1), UBOUND(InData%PropsS,1)
+          ReKiBuf(Re_Xferred) = InData%PropsS(i1,i2)
           Re_Xferred = Re_Xferred + 1
         END DO
       END DO
@@ -4466,6 +4604,8 @@ ENDIF
     Int_Xferred = Int_Xferred + 1
     OutData%NPropSetsR = IntKiBuf(Int_Xferred)
     Int_Xferred = Int_Xferred + 1
+    OutData%NPropSetsS = IntKiBuf(Int_Xferred)
+    Int_Xferred = Int_Xferred + 1
     OutData%NCMass = IntKiBuf(Int_Xferred)
     Int_Xferred = Int_Xferred + 1
     OutData%NCOSMs = IntKiBuf(Int_Xferred)
@@ -4564,6 +4704,29 @@ ENDIF
       DO i2 = LBOUND(OutData%PropSetsR,2), UBOUND(OutData%PropSetsR,2)
         DO i1 = LBOUND(OutData%PropSetsR,1), UBOUND(OutData%PropSetsR,1)
           OutData%PropSetsR(i1,i2) = ReKiBuf(Re_Xferred)
+          Re_Xferred = Re_Xferred + 1
+        END DO
+      END DO
+  END IF
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! PropSetsS not allocated
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    Int_Xferred = Int_Xferred + 1
+    i1_l = IntKiBuf( Int_Xferred    )
+    i1_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    i2_l = IntKiBuf( Int_Xferred    )
+    i2_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    IF (ALLOCATED(OutData%PropSetsS)) DEALLOCATE(OutData%PropSetsS)
+    ALLOCATE(OutData%PropSetsS(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%PropSetsS.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+      DO i2 = LBOUND(OutData%PropSetsS,2), UBOUND(OutData%PropSetsS,2)
+        DO i1 = LBOUND(OutData%PropSetsS,1), UBOUND(OutData%PropSetsS,1)
+          OutData%PropSetsS(i1,i2) = ReKiBuf(Re_Xferred)
           Re_Xferred = Re_Xferred + 1
         END DO
       END DO
@@ -4863,6 +5026,8 @@ ENDIF
     Int_Xferred = Int_Xferred + 1
     OutData%NPropR = IntKiBuf(Int_Xferred)
     Int_Xferred = Int_Xferred + 1
+    OutData%NPropS = IntKiBuf(Int_Xferred)
+    Int_Xferred = Int_Xferred + 1
   IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! Nodes not allocated
     Int_Xferred = Int_Xferred + 1
   ELSE
@@ -4951,6 +5116,29 @@ ENDIF
       DO i2 = LBOUND(OutData%PropsR,2), UBOUND(OutData%PropsR,2)
         DO i1 = LBOUND(OutData%PropsR,1), UBOUND(OutData%PropsR,1)
           OutData%PropsR(i1,i2) = ReKiBuf(Re_Xferred)
+          Re_Xferred = Re_Xferred + 1
+        END DO
+      END DO
+  END IF
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! PropsS not allocated
+    Int_Xferred = Int_Xferred + 1
+  ELSE
+    Int_Xferred = Int_Xferred + 1
+    i1_l = IntKiBuf( Int_Xferred    )
+    i1_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    i2_l = IntKiBuf( Int_Xferred    )
+    i2_u = IntKiBuf( Int_Xferred + 1)
+    Int_Xferred = Int_Xferred + 2
+    IF (ALLOCATED(OutData%PropsS)) DEALLOCATE(OutData%PropsS)
+    ALLOCATE(OutData%PropsS(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ErrStat2 /= 0) THEN 
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%PropsS.', ErrStat, ErrMsg,RoutineName)
+       RETURN
+    END IF
+      DO i2 = LBOUND(OutData%PropsS,2), UBOUND(OutData%PropsS,2)
+        DO i1 = LBOUND(OutData%PropsS,1), UBOUND(OutData%PropsS,1)
+          OutData%PropsS(i1,i2) = ReKiBuf(Re_Xferred)
           Re_Xferred = Re_Xferred + 1
         END DO
       END DO

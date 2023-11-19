@@ -275,12 +275,13 @@ SUBROUTINE SD_Init( InitInput, u, p, x, xd, z, OtherState, y, m, Interval, InitO
 
    ! --- Allocate DOF indices to joints and members 
    call DistributeDOF(Init, p ,ErrStat2, ErrMsg2); if(Failed()) return; 
-
    ! Assemble Stiffness and mass matrix
    CALL AssembleKM(Init, p, ErrStat2, ErrMsg2); if(Failed()) return
 
    ! Insert soil stiffness and mass matrix (NOTE: using NodesDOF, unreduced matrix)
    CALL InsertSoilMatrices(Init%M, Init%K, p%NodesDOF, Init, p, ErrStat2, ErrMsg2); if(Failed()) return
+   print*, 'After InsertSoil'
+   print*, 'Init%K', Init%K
 
    ! --- Elimination of constraints (reset M, K, D, to lower size, and BCs IntFc )
    CALL DirectElimination(Init, p, ErrStat2, ErrMsg2); if(Failed()) return
@@ -1250,11 +1251,36 @@ if (.not. LegacyFormat) then
       CALL ReadAry( UnIn, SDInputFile, Init%PropSetsR(I,:), PropSetsRCol, 'RigidPropSets', 'RigidPropSets ID and values ', ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
    ENDDO   
    IF (Check( Init%NPropSetsR < 0, 'NPropSetsRigid must be >=0')) return
+   !-------------------------- SPRING PROPERTIES  -------------------------------------
+   CALL ReadCom  ( UnIn, SDInputFile,                  'Spring properties'                                 ,ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
+   CALL ReadIVar ( UnIn, SDInputFile, Init%NPropSetsS, 'NPropSetsS', 'Number of spring properties' ,ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
+   CALL ReadCom  ( UnIn, SDInputFile,                  'Spring properties Header'                          ,ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
+   CALL ReadCom  ( UnIn, SDInputFile,                  'Spring properties Unit  '                          ,ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
+   IF (Check( Init%NPropSetsS < 0, 'NPropSetsSpring must be >=0')) return
+   
+   CALL AllocAry(Init%PropSetsS, Init%NPropSetsS, PropSetsSCol, 'PropSetsS', ErrStat2, ErrMsg2); if(Failed()) return
+   DO I = 1, Init%NPropSetsS
+      READ(UnIn, FMT='(A)', IOSTAT=ErrStat2) Line; ErrMsg2='Error reading spring property line'; if (Failed()) return
+      call ReadFAryFromStr(Line, Init%PropSetsS(I,:), PropSetsSCol, nColValid, nColNumeric);
+      print*, 'Line', Line
+      print*, 'Init%PropSetsS(I,:)', Init%PropSetsS(I,:)
+      print*, 'PropSetsSCol', PropSetsSCol
+      print*, 'nColValid', nColValid
+      print*, 'nColNumeric', nColNumeric
+      if ((nColValid/=nColNumeric).and.(nColNumeric/=PropSetsSCol)) then
+         CALL Fatal(' Error in file "'//TRIM(SDInputFile)//'": Spring property line must consist of 7 numerical values. Problematic line: "'//trim(Line)//'"')
+         return
+      endif
+   ENDDO   
+   
+   
 else
    Init%NPropSetsC=0
    Init%NPropSetsR=0
+   Init%NPropSetsS=0
    CALL AllocAry(Init%PropSetsC, Init%NPropSetsC, PropSetsCCol, 'PropSetsC', ErrStat2, ErrMsg2); if(Failed()) return
    CALL AllocAry(Init%PropSetsR, Init%NPropSetsR, PropSetsRCol, 'RigidPropSets', ErrStat2, ErrMsg2); if(Failed()) return
+   CALL AllocAry(Init%PropSetsS, Init%NPropSetsS, PropSetsSCol, 'PropSetsS', ErrStat2, ErrMsg2); if(Failed()) return
 endif
 
 !---------------------- MEMBER COSINE MATRICES COSM(i,j) ------------------------
@@ -1263,6 +1289,7 @@ CALL ReadIVar ( UnIn, SDInputFile, Init%NCOSMs, 'NCOSMs', 'Number of unique dire
 CALL ReadCom  ( UnIn, SDInputFile,              'Cosine Matrices Headers'                             ,ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
 CALL ReadCom  ( UnIn, SDInputFile,              'Cosine Matrices Units  '                             ,ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
 CALL AllocAry(Init%COSMs, Init%NCOSMs, COSMsCol, 'COSMs', ErrStat2, ErrMsg2); if(Failed()) return
+
 DO I = 1, Init%NCOSMs
    CALL ReadAry( UnIn, SDInputFile, Init%COSMs(I,:), COSMsCol, 'CosM', 'Cosine Matrix IDs  and Values ', ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
 ENDDO   
