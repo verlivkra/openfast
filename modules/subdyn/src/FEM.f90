@@ -1202,7 +1202,7 @@ SUBROUTINE ElemK_Spring(ktxx, ktyy, ktzz, krxx, kryy, krzz, DirCos, K)
    DC( 7: 9,  7: 9) = DirCos
    DC(10:12, 10:12) = DirCos
    
-   print*, 'K', K
+   !print*, 'K', K
    
    K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
    

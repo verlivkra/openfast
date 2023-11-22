@@ -500,6 +500,7 @@ SUBROUTINE SD_Discrt(Init,p, ErrStat, ErrMsg)
    CALL SD_ReIndex_CreateNodesAndElems(Init, p, ErrStat2, ErrMsg2);  if(Failed()) return
    
    ! --- Perform some sanity checks (irrespectively of NDiv) Would be better to do that before Reindexing...
+   
     do I = 1, p%NMembers !the first p%NMembers rows of p%Elems contain the element information
        ! Member data
        Node1 = p%Elems(I, 2)
@@ -507,10 +508,11 @@ SUBROUTINE SD_Discrt(Init,p, ErrStat, ErrMsg)
        Prop1 = p%Elems(I, iMProp  )
        Prop2 = p%Elems(I, iMProp+1)
        eType = p%Elems(I, iMType  )
-
+       
        if (( Node1==Node2) .AND. (eType/=idMemberSpring)) THEN
-           print*, 'eType', eType
+           
           CALL Fatal(' Same starting and ending node in the member. This is only ok for spring element. (See member at position '//trim(num2lstr(I))//' in member list)')
+          
           return
        endif
 
@@ -855,7 +857,7 @@ SUBROUTINE SetElementProperties(Init, p, ErrStat, ErrMsg)
       Point2 = Init%Nodes(N2,2:4)
 
       if (iDirCos/=-1) then
-         CALL GetDirCos(Point1, Point2, DirCos, L, ErrStat2, ErrMsg2); if(Failed()) return ! sets L
+         ! CALL GetDirCos(Point1, Point2, DirCos, L, ErrStat2, ErrMsg2); if(Failed()) return ! sets L !VLK: Removed because it is overwritten later on?
          
          ! overwrites direction cosines
          DirCos(1, 1) =  Init%COSMs(iDirCos, 2)
@@ -1006,9 +1008,7 @@ SUBROUTINE SetElementProperties(Init, p, ErrStat, ErrMsg)
          endif
          p%ElemProps(i)%Area    = 1                  ! Arbitrary set to 1
          p%ElemProps(i)%Rho     = 0                  ! Springs have no mass
-         print*, 'p%ElemProps(i)%Rho', p%ElemProps(i)%Rho
          p%ElemProps(i)%ktxx    = Init%PropsS(P1, 2)
-         print*, 'Init%PropsS(P1, 2)', Init%PropsS(P1, 2)
          p%ElemProps(i)%ktyy    = Init%PropsS(P1, 3)
          p%ElemProps(i)%ktzz    = Init%PropsS(P1, 4)
          p%ElemProps(i)%krxx    = Init%PropsS(P1, 5)
@@ -1207,14 +1207,14 @@ SUBROUTINE AssembleKM(Init, p, ErrStat, ErrMsg)
 
    ! loop over all elements, compute element matrices and assemble into global matrices
    DO i = 1, Init%NElem
-      print*, 'Init%NElem', Init%NElem
+      
       ! --- Element Me,Ke,Fg, Fce
       CALL ElemM(p%ElemProps(i), Me)
       CALL ElemK(p%ElemProps(i), Ke)
       CALL ElemF(p%ElemProps(i), Init%g, FGe, FCe)
 
       ! --- Assembly in global unconstrained system
-      print*, 'p%ElemsDOF', p%ElemsDOF
+      
       IDOF = p%ElemsDOF(1:12, i)
       p%FG     ( IDOF )  = p%FG( IDOF )   + FGe(1:12)+ FCe(1:12) ! Note: gravity and pretension cable forces
       Init%K(IDOF, IDOF) = Init%K( IDOF, IDOF) + Ke(1:12,1:12)

@@ -280,8 +280,6 @@ SUBROUTINE SD_Init( InitInput, u, p, x, xd, z, OtherState, y, m, Interval, InitO
 
    ! Insert soil stiffness and mass matrix (NOTE: using NodesDOF, unreduced matrix)
    CALL InsertSoilMatrices(Init%M, Init%K, p%NodesDOF, Init, p, ErrStat2, ErrMsg2); if(Failed()) return
-   print*, 'After InsertSoil'
-   print*, 'Init%K', Init%K
 
    ! --- Elimination of constraints (reset M, K, D, to lower size, and BCs IntFc )
    CALL DirectElimination(Init, p, ErrStat2, ErrMsg2); if(Failed()) return
@@ -1262,11 +1260,6 @@ if (.not. LegacyFormat) then
    DO I = 1, Init%NPropSetsS
       READ(UnIn, FMT='(A)', IOSTAT=ErrStat2) Line; ErrMsg2='Error reading spring property line'; if (Failed()) return
       call ReadFAryFromStr(Line, Init%PropSetsS(I,:), PropSetsSCol, nColValid, nColNumeric);
-      print*, 'Line', Line
-      print*, 'Init%PropSetsS(I,:)', Init%PropSetsS(I,:)
-      print*, 'PropSetsSCol', PropSetsSCol
-      print*, 'nColValid', nColValid
-      print*, 'nColNumeric', nColNumeric
       if ((nColValid/=nColNumeric).and.(nColNumeric/=PropSetsSCol)) then
          CALL Fatal(' Error in file "'//TRIM(SDInputFile)//'": Spring property line must consist of 7 numerical values. Problematic line: "'//trim(Line)//'"')
          return
@@ -3576,6 +3569,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    INTEGER(IntKi)         :: i, j, k, propIDs(2), Iprop(2)  !counter and temporary holders
    INTEGER(IntKi)         :: iNode1, iNode2 ! Node indices
    INTEGER(IntKi)         :: mType ! Member Type
+   INTEGER                :: iDirCos
    REAL(ReKi)             :: mMass, mLength ! Member mass and length
    REAL(ReKi)             :: M_O(6,6)    ! Equivalent mass matrix at origin
    REAL(ReKi)             :: M_P(6,6)    ! Equivalent mass matrix at P (ref point)
@@ -3795,9 +3789,14 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
        !Calculate member mass here; this should really be done somewhere else, yet it is not used anywhere else
        !IT WILL HAVE TO BE MODIFIED FOR OTHER THAN CIRCULAR PIPE ELEMENTS
        propIDs=Init%Members(i,iMProp:iMProp+1) 
-       mLength=MemberLength(Init%Members(i,1),Init,ErrStat,ErrMsg) ! TODO double check mass and length
+       mType =  Init%Members(I, iMType) ! 
+       if (mType/=idMemberSpring) then  
+           mLength=MemberLength(Init%Members(i,1),Init,ErrStat,ErrMsg) ! TODO double check mass and length
+       else 
+           mLength = 0.0 ! Spring has no length
+       endif
+       
        IF (ErrStat .EQ. ErrID_None) THEN
-        mType =  Init%Members(I, iMType) ! 
         if (mType==idMemberBeamCirc) then
            iProp(1) = FINDLOCI(Init%PropSetsB(:,1), propIDs(1))
            iProp(2) = FINDLOCI(Init%PropSetsB(:,1), propIDs(2))
@@ -3826,7 +3825,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
            WRITE(UnSum, '(A)') '#TODO, member unknown'
         endif
        ELSE 
-           RETURN
+            RETURN
        ENDIF
    ENDDO   
    !-------------------------------------------------------------------------------------------------------------
@@ -3840,7 +3839,22 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
       iNode2 = FINDLOCI(Init%Joints(:,1), Init%Members(i,3)) ! index of joint 2 of member i
       XYZ1   = Init%Joints(iNode1,2:4)
       XYZ2   = Init%Joints(iNode2,2:4)
-      CALL GetDirCos(XYZ1(1:3), XYZ2(1:3), DirCos, mLength, ErrStat, ErrMsg)
+      mType =  Init%Members(i, iMType) ! 
+      if ((mType == idMemberSpring) .or. (mType == idMemberBeamArb)) then
+         iDirCos = p%Elems(i,  iMDirCosID) !VLK: TODO verify that i is correct counting
+         DirCos(1, 1) =  Init%COSMs(iDirCos, 2)
+         DirCos(2, 1) =  Init%COSMs(iDirCos, 3)
+         DirCos(3, 1) =  Init%COSMs(iDirCos, 4)
+         DirCos(1, 2) =  Init%COSMs(iDirCos, 5)
+         DirCos(2, 2) =  Init%COSMs(iDirCos, 6)
+         DirCos(3, 2) =  Init%COSMs(iDirCos, 7)
+         DirCos(1, 3) =  Init%COSMs(iDirCos, 8)
+         DirCos(2, 3) =  Init%COSMs(iDirCos, 9)
+         DirCos(3, 3) =  Init%COSMs(iDirCos, 10)
+      else
+       CALL GetDirCos(XYZ1(1:3), XYZ2(1:3), DirCos, mLength, ErrStat, ErrMsg)
+      endif
+      
       DirCos=TRANSPOSE(DirCos) !This is now global to local
       WRITE(UnSum, '("#",I9,9(ES28.18E2))') Init%Members(i,1), ((DirCos(k,j),j=1,3),k=1,3)
    ENDDO
