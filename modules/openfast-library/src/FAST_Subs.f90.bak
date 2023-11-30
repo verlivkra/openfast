@@ -580,14 +580,6 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, BD, SrvD, 
             Init%InData_IfW%BoxExceedAllowF = .true.
             Init%InData_IfW%BoxExceedAllowIdx = min(Init%InData_IfW%BoxExceedAllowIdx, AD_BoxExceedPointsIdx(AD%Input(1), AD%OtherSt(STATE_CURR)))
          endif
-
-         ! Temporary hack! Allow extrapolation of winds on tower
-         Init%InData_IfW%BoxExceedAllowF = .true.
-         do k=1,size(AD%Input(1)%rotors(1)%BladeMotion)
-            i = i + AD%Input(1)%rotors(1)%BladeMotion(k)%NNodes
-         end do
-         Init%InData_IfW%BoxExceedAllowIdx = i + 1  ! first tower node
-
       END IF
 
       ! lidar
